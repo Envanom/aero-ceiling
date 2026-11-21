@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CEILING — The Daily Aeronautical Rarity Challenge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Chakra Petch', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .hud-border {
+      box-shadow: inset 0 0 15px rgba(6, 182, 212, 0.12), 0 0 10px rgba(6, 182, 212, 0.08);
+    }
+    .hud-scanline {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 4px 100%;
+      pointer-events: none;
+    }
+    @keyframes stallPulse {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.8); background-color: rgba(239, 68, 68, 0.15); }
+      50% { border-color: rgba(239, 68, 68, 0.2); background-color: transparent; }
+    }
+    .stall-warning {
+      animation: stallPulse 0.6s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-black relative">
+  <div class="fixed inset-0 hud-scanline z-50 pointer-events-none"></div>
+
+  <!-- Cockpit Header HUD -->
+  <header class="border-b border-cyan-900/60 bg-slate-950/90 backdrop-blur px-4 py-3 sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-2.5 h-7 bg-cyan-400 rounded-sm shadow-[0_0_8px_#22d3ee]"></div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-bold tracking-widest text-cyan-300">CEILING</h1>
+            <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-400 mono font-semibold" id="sortieBadge">SORTIE #001</span>
+          </div>
+          <p class="text-[10px] uppercase tracking-wider text-slate-400 mono">Aeronautical Rarity Flight Simulation</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <!-- Live Altitude Telemetry -->
+        <div class="text-right">
+          <div class="text-[10px] text-slate-400 mono uppercase tracking-wider">Alt Telemetry</div>
+          <div class="text-lg font-bold text-amber-400 mono flex items-baseline justify-end gap-1">
+            <span id="currentAltDisplay">0</span>
+            <span class="text-xs text-amber-500/80">FT</span>
+          </div>
+        </div>
+
+        <!-- Mode / Sound Controls -->
+        <div class="flex items-center gap-1.5 border-l border-slate-800 pl-3">
+          <button id="audioToggleBtn" title="Toggle Avionics Audio" class="p-1.5 rounded border border-slate-800 hover:border-cyan-600 bg-slate-900 text-slate-300 text-xs">
+            🔊
+          </button>
+          <button id="modeSwitchBtn" title="Toggle Training Mode" class="px-2 py-1 rounded border border-cyan-800 bg-cyan-950/60 hover:bg-cyan-900 text-[11px] mono text-cyan-300 font-semibold">
+            DAILY
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Flight Deck Container -->
+  <main class="max-w-3xl w-full mx-auto px-4 py-6 flex-1 flex flex-col justify-center">
+
+    <!-- Screen 1: Briefing Room (Pre-Flight) -->
+    <section id="briefingScreen" class="space-y-6">
+      <div class="p-6 rounded-lg bg-slate-900/90 border border-cyan-800/80 hud-border relative overflow-hidden">
+        <div class="absolute -right-8 -top-8 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+          <span class="text-xs text-cyan-400 mono uppercase tracking-widest flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> FLIGHT MISSION DIRECTIVE
+          </span>
+          <span class="text-xs text-slate-400 mono" id="briefingDate">--</span>
+        </div>
+
+        <h2 class="text-2xl font-bold text-white mb-2">Climb to the Service Ceiling</h2>
+        <p class="text-sm text-slate-300 leading-relaxed mb-4">
+          Aviation is full of obvious answers—and deep engineering cuts. In <span class="text-cyan-400 font-semibold">CEILING</span>, common textbook answers only get you to pattern altitude. To climb into the Stratosphere, submit valid components or phenomena that almost nobody else remembers.
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+          <div class="p-2.5 rounded bg-slate-950 border border-slate-800 text-center">
+            <div class="text-[10px] text-slate-400 mono">COMMON</div>
+            <div class="text-sm font-bold text-slate-300">+1,500 FT</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Basic Textbook</div>
+          </div>
+          <div class="p-2.5 rounded bg-slate-950 border border-blue-900/60 text-center">
+            <div class="text-[10px] text-blue-400 mono">UNCOMMON</div>
+            <div class="text-sm font-bold text-blue-300">+4,000 FT</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Operational Standard</div>
+          </div>
+          <div class="p-2.5 rounded bg-slate-950 border border-amber-900/60 text-center">
+            <div class="text-[10px] text-amber-400 mono">RARE</div>
+            <div class="text-sm font-bold text-amber-300">+8,000 FT</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Specialized Systems</div>
+          </div>
+          <div class="p-2.5 rounded bg-slate-950 border border-emerald-900/60 text-center">
+            <div class="text-[10px] text-emerald-400 mono">MACH CUT</div>
+            <div class="text-sm font-bold text-emerald-300">+12,000 FT</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Deep Aero Cut</div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <button id="commenceSortieBtn" class="w-full sm:flex-1 py-3 px-4 rounded bg-cyan-500 hover:bg-cyan-400 text-black font-bold tracking-wider uppercase mono text-sm shadow-[0_0_15px_rgba(6,182,212,0.4)] transition">
+            Commence Flight Sortie (5 Prompts)
+          </button>
+          <button id="viewPoolBtn" class="w-full sm:w-auto py-3 px-4 rounded border border-slate-700 hover:border-slate-500 bg-slate-950 text-slate-300 text-sm mono">
+            Inspect Question Pool
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 2: Active Sortie Play Deck -->
+    <section id="gameScreen" class="hidden space-y-4">
+      <!-- Progress Bar & Timer Header -->
+      <div class="flex items-center justify-between text-xs mono text-slate-400 bg-slate-900/80 px-4 py-2 rounded border border-slate-800">
+        <div>PROMPT <span id="currentPromptNum" class="text-cyan-400 font-bold">1</span> OF 5</div>
+        <div class="flex items-center gap-2">
+          <span>TIMER:</span>
+          <span id="timerDisplay" class="font-bold text-sm text-cyan-300">25s</span>
+        </div>
+        <div class="w-24 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div id="missionProgress" class="bg-cyan-400 h-full transition-all duration-300" style="width: 20%;"></div>
+        </div>
+      </div>
+
+      <!-- Flight Challenge Card -->
+      <div id="flightCard" class="p-6 rounded-lg bg-slate-900/90 border border-cyan-800 hud-border relative">
+        <div class="flex items-center gap-2 mb-2">
+          <span id="promptDomain" class="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/80 uppercase mono">DOMAIN</span>
+        </div>
+        <h3 id="promptText" class="text-xl sm:text-2xl font-bold text-white mb-6 leading-snug">Loading Flight Telemetry...</h3>
+
+        <!-- HUD Input Form -->
+        <form id="submissionForm" class="space-y-3">
+          <div class="relative">
+            <input 
+              type="text" 
+              id="answerInput" 
+              autocomplete="off" 
+              spellcheck="false" 
+              placeholder="Enter recognized aerospace term or component..." 
+              class="w-full bg-slate-950 border-2 border-cyan-700/80 rounded px-4 py-3 text-base sm:text-lg mono text-cyan-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] transition"
+            />
+            <div class="absolute right-3 top-3 text-[10px] text-slate-500 mono pointer-events-none">[ENTER]</div>
+          </div>
+          <button type="submit" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold tracking-wider uppercase mono text-sm rounded shadow-[0_0_12px_rgba(6,182,212,0.3)] transition">
+            TRANSMIT TELEMETRY
+          </button>
+        </form>
+
+        <!-- Discrepancy Autocorrect Dialog (Timer Paused) -->
+        <div id="discrepancyBox" class="hidden mt-4 p-4 rounded bg-amber-950/40 border border-amber-500/80 text-amber-200">
+          <div class="flex items-center gap-2 text-xs mono font-bold text-amber-400 mb-2">
+            <span>⚠️ AVIONICS DISCREPANCY DETECTED</span>
+            <span class="text-[10px] px-1 bg-amber-900 rounded">TIMER FROZEN</span>
+          </div>
+          <p class="text-xs text-amber-200/90 mb-3">Unrecognized flight input matches these valid aeronautical records. Did you mean:</p>
+          <div id="suggestionChips" class="flex flex-wrap gap-2 mb-3"></div>
+          <button id="rejectSuggestionBtn" class="text-xs text-amber-400/80 hover:text-amber-300 underline mono">
+            No, proceed with my literal input (possible stall)
+          </button>
+        </div>
+
+        <!-- Feedback Readout -->
+        <div id="answerFeedback" class="hidden mt-4 p-4 rounded border mono text-sm flex items-center justify-between">
+          <div id="feedbackText"></div>
+          <div id="feedbackAltitude" class="font-bold text-base"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 3: Flight Debrief / Results -->
+    <section id="debriefScreen" class="hidden space-y-5">
+      <div class="p-6 rounded-lg bg-slate-900 border border-cyan-800/80 hud-border">
+        <div class="text-center pb-4 border-b border-slate-800">
+          <div class="text-xs text-cyan-400 mono uppercase tracking-wider mb-1">Flight Sortie Debrief</div>
+          <h2 class="text-3xl font-extrabold text-white mb-2" id="finalRankTitle">Flight Lieutenant</h2>
+          <div class="inline-flex items-baseline gap-1 text-4xl font-extrabold mono text-amber-400">
+            <span id="finalAltDisplay">0</span>
+            <span class="text-sm font-semibold text-amber-500">FT</span>
+          </div>
+          <p class="text-xs text-slate-400 mono mt-1" id="maxAltPct">Service Ceiling: 0% achieved</p>
+        </div>
+
+        <!-- Sortie Summary Log -->
+        <div class="mt-5 space-y-2" id="debriefLogs"></div>
+
+        <!-- Action Buttons -->
+        <div class="mt-6 flex flex-col sm:flex-row items-center gap-3">
+          <button id="copyShareBtn" class="w-full sm:flex-1 py-3 px-4 rounded bg-cyan-500 hover:bg-cyan-400 text-black font-bold tracking-wider uppercase mono text-sm transition flex items-center justify-center gap-2">
+            <span>📋</span> Copy Flight Ribbon
+          </button>
+          <button id="restartTrainingBtn" class="w-full sm:w-auto py-3 px-4 rounded border border-slate-700 hover:border-slate-500 bg-slate-950 text-slate-300 text-sm mono">
+            Fly Free Training
+          </button>
+        </div>
+      </div>
+
+      <!-- Answer Bank Reveal Drawer -->
+      <div class="p-5 rounded-lg bg-slate-900 border border-slate-800">
+        <h3 class="text-sm font-bold text-slate-200 uppercase mono mb-3 flex items-center justify-between">
+          <span>Sortie Data Recorder (All Accepted Terms)</span>
+          <span class="text-[10px] text-cyan-400 font-normal">Click each prompt to study</span>
+        </h3>
+        <div id="acceptedAnswersAccordion" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- Screen 4: Question Pool Browser Modal -->
+    <div id="poolModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-cyan-800 rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-white text-base">Aeronautical Question Pool</h3>
+            <p class="text-xs text-slate-400 mono">16 Daily Sorted Questionnaires</p>
+          </div>
+          <button id="closePoolBtn" class="text-slate-400 hover:text-white mono text-lg px-2">✕</button>
+        </div>
+        <div class="p-4 overflow-y-auto space-y-3 flex-1 text-sm" id="poolList"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Flight Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950/80 px-4 py-3 text-center text-[11px] text-slate-500 mono">
+    CEILING — Free Client-Side Aeronautical Engineering Rarity Engine • Seeded via UTC Day-Index
+  </footer>
+
+  <script>
+    /* ========================================================================
+       1. AERONAUTICAL QUESTION INVENTORY (16 DEEP-CUT ENGINEERING PROMPTS)
+       ======================================================================== */
+    const QUESTION_BANK = [
+      {
+        id: "ctrl-surf",
+        domain: "Flight Controls",
+        prompt: "Name a primary, secondary, or auxiliary flight control surface or tab.",
+        answers: {
+          common: ["aileron", "rudder", "elevator", "flaps", "slats", "spoilers"],
+          uncommon: ["trim tab", "flaperon", "elevon", "speed brake", "canard", "ruddervator", "leading edge flap"],
+          rare: ["anti-servo tab", "balance tab", "krueger flap", "servo tab", "all-moving tailplane", "stabilator"],
+          mach_cut: ["split flap", "blown flap", "fowler flap", "deceleron", "drag rudder", "gurney flap", "clark y flap"]
+        }
+      },
+      {
+        id: "turb-parts",
+        domain: "Propulsion & Gas Turbines",
+        prompt: "Name a component or subsystem found inside a turbofan or turbojet engine.",
+        answers: {
+          common: ["fan", "compressor", "combustion chamber", "combustor", "turbine", "nozzle", "afterburner"],
+          uncommon: ["inlet", "bypass duct", "stator", "rotor", "bleed valve", "diffuser", "fuel nozzle", "igniter"],
+          rare: ["blisk", "labyrinth seal", "swirl nozzle", "guide vane", "flame holder", "annular combustor", "casing"],
+          mach_cut: ["can-annular combustor", "thrust reverser cascade", "active clearance control", "variable stator vane", "brush seal", "turbine shroud"]
+        }
+      },
+      {
+        id: "structures",
+        domain: "Airframe Structures",
+        prompt: "Name a structural component of a semi-monocoque fuselage or wing assembly.",
+        answers: {
+          common: ["spar", "rib", "skin", "bulkhead"],
+          uncommon: ["stringer", "longerons", "former", "floor beam", "frame"],
+          rare: ["shear web", "intercostal", "pressure bulkhead", "drag wire", "anti-drag wire", "strut"],
+          mach_cut: ["wagner beam", "gusset plate", "tension tie", "doubler plate", "clevis joint", "keel beam"]
+        }
+      },
+      {
+        id: "aero-drag",
+        domain: "Aerodynamics",
+        prompt: "Name a specific classification or source of aerodynamic drag.",
+        answers: {
+          common: ["parasite drag", "induced drag", "wave drag", "form drag"],
+          uncommon: ["skin friction drag", "interference drag", "profile drag", "pressure drag"],
+          rare: ["cooling drag", "base drag", "trim drag", "leakage drag"],
+          mach_cut: ["boattail drag", "vortex drag", "ram drag", "spillage drag", "separation drag"]
+        }
+      },
+      {
+        id: "turboprop-ac",
+        domain: "Aircraft Identification",
+        prompt: "Name a twin-engine turboprop aircraft (civilian or military).",
+        answers: {
+          common: ["king air", "atr 72", "dash 8", "q400"],
+          uncommon: ["atr 42", "saab 340", "cessna 408 skycourier", "beechcraft 1900", "let l-410"],
+          rare: ["piaggio p.180 avanti", "dornier 228", "casa c-295", "antonov an-26", "swearingen merlin", "fokker 50"],
+          mach_cut: ["dornier 328", "grumman c-2 greyhound", "e-2 hawkeye", "transall c-160", "beechcraft starship", "mitsubishi mu-2"]
+        }
+      },
+      {
+        id: "b-layer-ctrl",
+        domain: "Boundary Layer Control",
+        prompt: "Name a device, contour, or technique used to control boundary layer separation.",
+        answers: {
+          common: ["slats", "vortex generators", "wing fence"],
+          uncommon: ["boundary layer suction", "blown flaps", "leading edge droop", "turbulator"],
+          rare: ["krueger flap", "boundary layer blowing", "sawtooth leading edge", "vortex flap"],
+          mach_cut: ["coanda surface", "suction slot", "micro-vortex generator", "acoustic excitation", "dielectric barrier discharge"]
+        }
+      },
+      {
+        id: "instruments",
+        domain: "Avionics & Cockpit",
+        prompt: "Name a pitot-static or gyroscopic flight deck instrument.",
+        answers: {
+          common: ["altimeter", "airspeed indicator", "attitude indicator", "heading indicator", "vertical speed indicator"],
+          uncommon: ["turn coordinator", "turn and bank indicator", "machmeter", "directional gyro"],
+          rare: ["horizontal situation indicator", "radio altimeter", "flight director", "slip skid indicator"],
+          mach_cut: ["angle of attack indicator", "inclinometer", "instantaneous vsi", "true airspeed indicator", "suction gauge"]
+        }
+      },
+      {
+        id: "delta-jets",
+        domain: "Aircraft Configuration",
+        prompt: "Name a tailless or canard-configured delta wing aircraft.",
+        answers: {
+          common: ["concorde", "mirage 2000", "eurofighter typhoon", "dassault rafale"],
+          uncommon: ["saab gripen", "saab draken", "saab viggen", "avro vulcan", "f-106 delta dart"],
+          rare: ["mirage iii", "f-102 delta dagger", "space shuttle", "b-58 hustler", "hal tejas"],
+          mach_cut: ["chengdu j-10", "chengdu j-20", "shenyang j-15", "douglas f4d skyray", "iae pampa"]
+        }
+      },
+      {
+        id: "piston-engine",
+        domain: "Aircraft Piston Engines",
+        prompt: "Name a component or accessory found in an aircraft reciprocating piston engine.",
+        answers: {
+          common: ["magneto", "spark plug", "cylinder", "crankshaft", "piston", "carburetor"],
+          uncommon: ["mixture control", "starter", "alternator", "oil cooler", "crankcase", "camshaft"],
+          rare: ["impeller", "wastegate", "baffle", "intercooler", "dual magneto", "propeller governor"],
+          mach_cut: ["unison valve", "primer line", "scavenge pump", "rocker arm", "pushrod", "tappet"]
+        }
+      },
+      {
+        id: "wing-planforms",
+        domain: "Aerodynamic Design",
+        prompt: "Name an aerodynamic wing planform shape or configuration.",
+        answers: {
+          common: ["swept wing", "delta wing", "rectangular wing", "tapered wing"],
+          uncommon: ["elliptical wing", "forward swept wing", "trapezoidal wing", "variable sweep wing"],
+          rare: ["gull wing", "inverted gull wing", "ogival delta wing", "cranked arrow delta"],
+          mach_cut: ["joined wing", "scissor wing", "oblique wing", "annular wing", "channel wing"]
+        }
+      },
+      {
+        id: "supersonic",
+        domain: "High-Speed Aerodynamics",
+        prompt: "Name a physical phenomenon or shock geometry associated with transonic/supersonic flight.",
+        answers: {
+          common: ["sonic boom", "shockwave", "normal shock", "oblique shock"],
+          uncommon: ["mach cone", "expansion fan", "prandtl-meyer expansion", "critical mach number"],
+          rare: ["bow shock", "detached shock", "shock stall", "transonic buffet"],
+          mach_cut: ["lambda shock", "wave drag rise", "conical shock", "prandtl-glauert singularity", "shock-induced boundary layer separation"]
+        }
+      },
+      {
+        id: "landing-gear",
+        domain: "Landing Gear Systems",
+        prompt: "Name a component, link, or assembly of a retractable aircraft landing gear system.",
+        answers: {
+          common: ["oleo strut", "shock absorber", "brake", "tire", "wheel", "trunnion"],
+          uncommon: ["shimmy damper", "torque link", "drag brace", "scissors link", "gear door"],
+          rare: ["downlock actuator", "uplock hook", "squat switch", "walking beam", "bogie"],
+          mach_cut: ["anti-skid transducer", "metering pin", "centering cam", "ground safety pin", "emergency blow-down bottle"]
+        }
+      },
+      {
+        id: "turbofan-jets",
+        domain: "Commercial Aviation",
+        prompt: "Name a wide-body commercial airliner powered by high-bypass turbofans.",
+        answers: {
+          common: ["boeing 777", "boeing 747", "airbus a350", "airbus a380", "boeing 787 dreamliner"],
+          uncommon: ["airbus a330", "boeing 767", "mcdonnell douglas md-11", "dc-10"],
+          rare: ["lockheed l-1011 tristar", "airbus a340", "ilyushin il-96", "boeing 747-8"],
+          mach_cut: ["ilyushin il-86", "airbus a300", "airbus a310", "airbus a330neo"]
+        }
+      },
+      {
+        id: "air-safety",
+        domain: "Avionics & Flight Safety",
+        prompt: "Name a flight deck alerting, warning, or collision-avoidance system acronym or device.",
+        answers: {
+          common: ["tcas", "gpws", "egpws", "stall warning", "autopilot"],
+          uncommon: ["stick shaker", "stick pusher", "fdr", "cvr", "elt"],
+          rare: ["windshear warning system", "radar altimeter alert", "traffic advisory", "resolution advisory"],
+          mach_cut: ["pws predictive windshear", "terrain clearance floor", "runway awareness advisory system", "takeoff configuration warning"]
+        }
+      },
+      {
+        id: "fuel-sys",
+        domain: "Aircraft Fuel Systems",
+        prompt: "Name a component or valve found in an aircraft fuel distribution system.",
+        answers: {
+          common: ["fuel tank", "fuel pump", "fuel filter", "fuel selector valve"],
+          uncommon: ["crossfeed valve", "fuel shutoff valve", "sump", "strainer", "fuel drain"],
+          rare: ["scavenge ejector", "jettison nozzle", "fuel quantity transmitter", "boost pump", "vent line"],
+          mach_cut: ["flapper check valve", "motive flow pump", "surge tank", "fuel-oil heat exchanger", "defuel valve"]
+        }
+      },
+      {
+        id: "stability",
+        domain: "Flight Dynamics",
+        prompt: "Name a parameter, phenomenon, or angle related to static or dynamic aircraft stability.",
+        answers: {
+          common: ["dihedral", "anhedral", "angle of attack", "center of gravity", "center of pressure"],
+          uncommon: ["phugoid", "dutch roll", "sideslip angle", "static margin", "neutral point"],
+          rare: ["short period mode", "spiral divergence", "wing sweepback angle", "directional stability"],
+          mach_cut: ["tuck under", "mach tuck", "adverse yaw", "cross-coupling", "aerodynamic center"]
+        }
+      }
+    ];
+
+    /* ========================================================================
+       2. DETERMINISTIC DAILY SEED GENERATOR (MULBERRY32)
+       ======================================================================== */
+    function getUtcDayNumber() {
+      const epoch = new Date('2026-01-01T00:00:00Z').getTime();
+      const now = new Date();
+      const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      return Math.floor((todayUtc - epoch) / (1000 * 60 * 60 * 24));
+    }
+
+    function mulberry32(seed) {
+      return function() {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      }
+    }
+
+    function selectDailySortie(pool, count = 5) {
+      const dayNum = getUtcDayNumber();
+      const rng = mulberry32(dayNum);
+      const indices = pool.map((_, i) => i);
+
+      // Deterministic Fisher-Yates shuffle
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+
+      return {
+        dayNum: dayNum,
+        questions: indices.slice(0, count).map(idx => pool[idx])
+      };
+    }
+
+    function selectRandomSortie(pool, count = 5) {
+      const shuffled = [...pool].sort(() => 0.5 - Math.random());
+      return {
+        dayNum: 'FREE-FLIGHT',
+        questions: shuffled.slice(0, count)
+      };
+    }
+
+    /* ========================================================================
+       3. TEXT NORMALIZATION & LEVENSHTEIN FUZZY MATCHING
+       ======================================================================== */
+    function normalizeText(str) {
+      return str
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim();
+    }
+
+    function levenshteinDistance(a, b) {
+      const matrix = Array.from({ length: a.length + 1 }, () => []);
+      for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+      for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return matrix[a.length][b.length];
+    }
+
+    function findClosestAeroMatches(input, currentQuestion) {
+      const normInput = normalizeText(input);
+      const candidates = [];
+      const tiers = currentQuestion.answers;
+
+      Object.entries(tiers).forEach(([tierKey, list]) => {
+        list.forEach(item => {
+          const normItem = normalizeText(item);
+          const dist = levenshteinDistance(normInput, normItem);
+          const threshold = normItem.length > 7 ? 3 : 2;
+          if (dist > 0 && dist <= threshold) {
+            candidates.push({ term: item, dist, tier: tierKey });
+          }
+        });
+      });
+
+      return candidates.sort((a, b) => a.dist - b.dist).slice(0, 3);
+    }
+
+    function evaluateAeroAnswer(input, currentQuestion) {
+      const normInput = normalizeText(input);
+      const tiers = currentQuestion.answers;
+
+      // Exact match lookup
+      for (const [tier, list] of Object.entries(tiers)) {
+        for (const item of list) {
+          if (normalizeText(item) === normInput) {
+            return { valid: true, exact: true, tier, matchedTerm: item };
+          }
+        }
+      }
+
+      // Check for fuzzy match
+      const suggestions = findClosestAeroMatches(input, currentQuestion);
+      return { valid: false, exact: false, suggestions };
+    }
+
+    /* ========================================================================
+       4. AUDIO SYNTHESIZER (WEB AUDIO API)
+       ======================================================================== */
+    let audioContext = null;
+    let audioEnabled = true;
+
+    function initAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playAvionicsTone(type) {
+      if (!audioEnabled) return;
+      initAudio();
+      if (!audioContext) return;
+
+      const now = audioContext.currentTime;
+
+      if (type === 'climb') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'stall') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.4);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.45);
+      } else if (type === 'tick') {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        gain.gain.setValueAtTime(0.03, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+    }
+
+    /* ========================================================================
+       5. APPLICATION STATE & CONTROLLER
+       ======================================================================== */
+    const TIER_CONFIG = {
+      common: { altitude: 1500, label: "COMMON", color: "text-slate-300", border: "border-slate-700", bg: "bg-slate-900", emoji: "⬜" },
+      uncommon: { altitude: 4000, label: "UNCOMMON", color: "text-blue-400", border: "border-blue-700", bg: "bg-blue-950/40", emoji: "🟦" },
+      rare: { altitude: 8000, label: "RARE", color: "text-amber-400", border: "border-amber-700", bg: "bg-amber-950/40", emoji: "🟨" },
+      mach_cut: { altitude: 12000, label: "MACH CUT", color: "text-emerald-400", border: "border-emerald-700", bg: "bg-emerald-950/40", emoji: "🟩" },
+      stall: { altitude: 0, label: "STALL", color: "text-red-400", border: "border-red-700", bg: "bg-red-950/40", emoji: "🟥" }
+    };
+
+    let activeSortie = null;
+    let isDailyMode = true;
+    let currentPromptIndex = 0;
+    let totalAltitude = 0;
+    let sortieLogs = [];
+    let timerInterval = null;
+    let timerRemaining = 25;
+    let timerPaused = false;
+
+    // DOM Elements
+    const briefingScreen = document.getElementById('briefingScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const debriefScreen = document.getElementById('debriefScreen');
+    const poolModal = document.getElementById('poolModal');
+
+    const sortieBadge = document.getElementById('sortieBadge');
+    const currentAltDisplay = document.getElementById('currentAltDisplay');
+    const audioToggleBtn = document.getElementById('audioToggleBtn');
+    const modeSwitchBtn = document.getElementById('modeSwitchBtn');
+    const briefingDate = document.getElementById('briefingDate');
+
+    const promptDomain = document.getElementById('promptDomain');
+    const promptText = document.getElementById('promptText');
+    const currentPromptNum = document.getElementById('currentPromptNum');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const missionProgress = document.getElementById('missionProgress');
+    const answerInput = document.getElementById('answerInput');
+    const submissionForm = document.getElementById('submissionForm');
+    const discrepancyBox = document.getElementById('discrepancyBox');
+    const suggestionChips = document.getElementById('suggestionChips');
+    const rejectSuggestionBtn = document.getElementById('rejectSuggestionBtn');
+    const answerFeedback = document.getElementById('answerFeedback');
+    const feedbackText = document.getElementById('feedbackText');
+    const feedbackAltitude = document.getElementById('feedbackAltitude');
+    const flightCard = document.getElementById('flightCard');
+
+    const finalRankTitle = document.getElementById('finalRankTitle');
+    const finalAltDisplay = document.getElementById('finalAltDisplay');
+    const maxAltPct = document.getElementById('maxAltPct');
+    const debriefLogs = document.getElementById('debriefLogs');
+    const acceptedAnswersAccordion = document.getElementById('acceptedAnswersAccordion');
+    const copyShareBtn = document.getElementById('copyShareBtn');
+
+    // Initialize View
+    function init() {
+      const now = new Date();
+      briefingDate.textContent = now.toISOString().split('T')[0];
+
+      loadSortieMode(true);
+
+      // Event Listeners
+      document.getElementById('commenceSortieBtn').addEventListener('click', startFlight);
+      document.getElementById('viewPoolBtn').addEventListener('click', () => openPoolModal());
+      document.getElementById('closePoolBtn').addEventListener('click', () => poolModal.classList.add('hidden'));
+      document.getElementById('restartTrainingBtn').addEventListener('click', () => {
+        loadSortieMode(false);
+        startFlight();
+      });
+
+      audioToggleBtn.addEventListener('click', () => {
+        audioEnabled = !audioEnabled;
+        audioToggleBtn.textContent = audioEnabled ? '🔊' : '🔇';
+      });
+
+      modeSwitchBtn.addEventListener('click', () => {
+        loadSortieMode(!isDailyMode);
+      });
+
+      submissionForm.addEventListener('submit', handleFormSubmit);
+      rejectSuggestionBtn.addEventListener('click', handleRejectSuggestions);
+      copyShareBtn.addEventListener('click', copyFlightRibbon);
+    }
+
+    function loadSortieMode(daily) {
+      isDailyMode = daily;
+      if (isDailyMode) {
+        activeSortie = selectDailySortie(QUESTION_BANK, 5);
+        sortieBadge.textContent = `SORTIE #${String(activeSortie.dayNum).padStart(3, '0')}`; modeSwitchBtn.textContent = 'DAILY'; modeSwitchBtn.className = "px-2 py-1 rounded border border-cyan-800 bg-cyan-950/60 hover:bg-cyan-900 text-[11px] mono text-cyan-300 font-semibold"; } else { activeSortie = selectRandomSortie(QUESTION_BANK, 5); sortieBadge.textContent = 'TRAINING'; modeSwitchBtn.textContent = 'FREE FLT'; modeSwitchBtn.className = "px-2 py-1 rounded border border-amber-800 bg-amber-950/60 hover:bg-amber-900 text-[11px] mono text-amber-300 font-semibold"; } }  function startFlight() { briefingScreen.classList.add('hidden'); debriefScreen.classList.add('hidden'); gameScreen.classList.remove('hidden');  currentPromptIndex = 0; totalAltitude = 0; sortieLogs = []; currentAltDisplay.textContent = '0';  loadCurrentPrompt(); }  function loadCurrentPrompt() { clearInterval(timerInterval); discrepancyBox.classList.add('hidden'); answerFeedback.classList.add('hidden'); flightCard.classList.remove('stall-warning'); answerInput.value = ''; answerInput.disabled = false; answerInput.focus();  const q = activeSortie.questions[currentPromptIndex]; promptDomain.textContent = q.domain; promptText.textContent = q.prompt; currentPromptNum.textContent = currentPromptIndex + 1; missionProgress.style.width = `${((currentPromptIndex + 1) / 5) * 100}%`;
+
+      timerRemaining = 25;
+      timerPaused = false;
+      timerDisplay.textContent = `${timerRemaining}s`; timerDisplay.className = "font-bold text-sm text-cyan-300";  timerInterval = setInterval(() => { if (!timerPaused) { timerRemaining--; timerDisplay.textContent = `${timerRemaining}s`;
+
+          if (timerRemaining <= 5 && timerRemaining > 0) {
+            timerDisplay.className = "font-bold text-sm text-red-400 animate-pulse";
+            playAvionicsTone('tick');
+          }
+
+          if (timerRemaining <= 0) {
+            clearInterval(timerInterval);
+            processAnswer(null, 'TIME OUT / NO TRANSMISSION');
+          }
+        }
+      }, 1000);
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const rawInput = answerInput.value.trim();
+      if (!rawInput) return;
+
+      const q = activeSortie.questions[currentPromptIndex];
+      const evaluation = evaluateAeroAnswer(rawInput, q);
+
+      if (evaluation.valid) {
+        processAnswer(evaluation.tier, rawInput, evaluation.matchedTerm);
+      } else if (evaluation.suggestions && evaluation.suggestions.length > 0) {
+        showDiscrepancyPrompt(evaluation.suggestions, rawInput);
+      } else {
+        processAnswer('stall', rawInput);
+      }
+    }
+
+    function showDiscrepancyPrompt(suggestions, originalInput) {
+      timerPaused = true;
+      discrepancyBox.classList.remove('hidden');
+      suggestionChips.innerHTML = '';
+
+      suggestions.forEach(s => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'px-3 py-1.5 rounded bg-amber-900/80 hover:bg-amber-800 border border-amber-600 text-xs text-amber-100 mono font-semibold';
+        chip.textContent = s.term;
+        chip.addEventListener('click', () => {
+          discrepancyBox.classList.add('hidden');
+          processAnswer(s.tier, s.term, s.term);
+        });
+        suggestionChips.appendChild(chip);
+      });
+
+      rejectSuggestionBtn.dataset.original = originalInput;
+    }
+
+    function handleRejectSuggestions() {
+      const raw = rejectSuggestionBtn.dataset.original;
+      discrepancyBox.classList.add('hidden');
+      processAnswer('stall', raw);
+    }
+
+    function processAnswer(tier, typedInput, matchedTerm = null) {
+      clearInterval(timerInterval);
+      answerInput.disabled = true;
+
+      const isStall = !tier || tier === 'stall';
+      const config = isStall ? TIER_CONFIG.stall : TIER_CONFIG[tier];
+      const gainedAlt = config.altitude;
+      totalAltitude += gainedAlt;
+
+      currentAltDisplay.textContent = totalAltitude.toLocaleString();
+
+      if (isStall) {
+        playAvionicsTone('stall');
+        flightCard.classList.add('stall-warning');
+        feedbackText.innerHTML = `<span class="text-red-400 font-bold">AERODYNAMIC STALL:</span> Unrecognized input [${typedInput || 'NIL'}]`;
+        feedbackAltitude.textContent = "+0 FT";
+        answerFeedback.className = "mt-4 p-4 rounded border mono text-sm flex items-center justify-between border-red-800 bg-red-950/60 text-red-200";
+      } else {
+        playAvionicsTone('climb');
+        feedbackText.innerHTML = `<span class="${config.color} font-bold">${config.label} TELEMETRY:</span> ${matchedTerm \vert{}\vert{} typedInput}`; feedbackAltitude.textContent = `+${gainedAlt.toLocaleString()} FT`;
+        answerFeedback.className = `mt-4 p-4 rounded border mono text-sm flex items-center justify-between ${config.border}${config.bg} text-slate-100`;
+      }
+
+      answerFeedback.classList.remove('hidden');
+
+      sortieLogs.push({
+        promptId: activeSortie.questions[currentPromptIndex].id,
+        prompt: activeSortie.questions[currentPromptIndex].prompt,
+        domain: activeSortie.questions[currentPromptIndex].domain,
+        typed: typedInput || 'NIL',
+        matched: matchedTerm,
+        tier: isStall ? 'stall' : tier,
+        altitude: gainedAlt,
+        emoji: config.emoji
+      });
+
+      setTimeout(() => {
+        if (currentPromptIndex + 1 < 5) {
+          currentPromptIndex++;
+          loadCurrentPrompt();
+        } else {
+          showDebriefScreen();
+        }
+      }, 1600);
+    }
+
+    function showDebriefScreen() {
+      gameScreen.classList.add('hidden');
+      debriefScreen.classList.remove('hidden');
+
+      finalAltDisplay.textContent = totalAltitude.toLocaleString();
+      const maxPossible = 5 * 12000;
+      const pct = Math.round((totalAltitude / maxPossible) * 100);
+      maxAltPct.textContent = `Service Ceiling Performance: ${pct}\% (${totalAltitude.toLocaleString()} / 60,000 FT)`;
+
+      // Rank Title Assignment
+      let rank = "Flight Cadet";
+      if (totalAltitude >= 50000) rank = "Test Pilot / Chief Aeronaut";
+      else if (totalAltitude >= 40000) rank = "Senior Flight Commander";
+      else if (totalAltitude >= 30000) rank = "Flight Lieutenant";
+      else if (totalAltitude >= 20000) rank = "First Officer";
+      else if (totalAltitude >= 10000) rank = "Junior Aviator";
+      finalRankTitle.textContent = rank;
+
+      // Render Debrief Log
+      debriefLogs.innerHTML = '';
+      sortieLogs.forEach((log, idx) => {
+        const item = document.createElement('div');
+        item.className = "p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between text-xs mono";
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-base">${log.emoji}</span>
+            <div>
+              <div class="text-slate-400 text-[10px] uppercase">${log.domain}</div>
+              <div class="text-slate-200 font-semibold">${log.matched || log.typed}</div>
+            </div>
+          </div>
+          <div class="font-bold ${log.altitude > 0 ? 'text-amber-400' : 'text-red-400'}">
+            +${log.altitude.toLocaleString()} FT
+          </div>
+        `;
+        debriefLogs.appendChild(item);
+      });
+
+      // Render Accepted Answers Accordion
+      acceptedAnswersAccordion.innerHTML = '';
+      activeSortie.questions.forEach((q, idx) => {
+        const container = document.createElement('details');
+        container.className = "p-3 rounded bg-slate-950 border border-slate-800 text-xs";
+        container.innerHTML = `
+          <summary class="font-semibold text-slate-300 cursor-pointer list-none flex items-center justify-between">
+            <span>#${idx + 1}${q.prompt}</span>
+            <span class="text-cyan-400 font-mono text-[10px]">INSPECT TIERS ▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800/80 space-y-2 mono text-[11px]">
+            <div><span class="text-emerald-400 font-bold">MACH CUT:</span> ${q.answers.mach_cut.join(', ')}</div>
+            <div><span class="text-amber-400 font-bold">RARE:</span> ${q.answers.rare.join(', ')}</div>
+            <div><span class="text-blue-400 font-bold">UNCOMMON:</span> ${q.answers.uncommon.join(', ')}</div>
+            <div><span class="text-slate-400 font-bold">COMMON:</span> ${q.answers.common.join(', ')}</div>
+          </div>
+        `;
+        acceptedAnswersAccordion.appendChild(container);
+      });
+    }
+
+    function copyFlightRibbon() {
+      const ribbon = sortieLogs.map(l => l.emoji).join('');
+      const sortieLabel = isDailyMode ? `Sortie #${String(activeSortie.dayNum).padStart(3, '0')}` : 'Training Flight';
+      const text = `✈️ CEILING (${sortieLabel})\nAltitude:${totalAltitude.toLocaleString()} FT\nFlight Ribbon: ${ribbon}\nRank:${finalRankTitle.textContent}\nPlay: https://yourusername.github.io/ceiling`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        copyShareBtn.innerHTML = `<span>✅</span> Flight Ribbon Copied!`;
+        setTimeout(() => {
+          copyShareBtn.innerHTML = `<span>📋</span> Copy Flight Ribbon`;
+        }, 2000);
+      });
+    }
+
+    function openPoolModal() {
+      poolModal.classList.remove('hidden');
+      const list = document.getElementById('poolList');
+      list.innerHTML = '';
+
+      QUESTION_BANK.forEach((q, i) => {
+        const item = document.createElement('div');
+        item.className = "p-3 rounded bg-slate-950 border border-slate-800";
+        item.innerHTML = `
+          <div class="flex items-center justify-between text-xs text-slate-400 mono mb-1">
+            <span class="text-cyan-400 font-bold">QUESTION ${String(i + 1).padStart(2, '0')}</span>
+            <span>${q.domain}</span>
+          </div>
+          <div class="text-slate-200 font-medium">${q.prompt}</div>
+          <div class="text-[10px] text-slate-500 mt-1 mono">Total recognized terms: ${
+            q.answers.common.length + q.answers.uncommon.length + q.answers.rare.length + q.answers.mach_cut.length
+          }</div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // Launch
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
